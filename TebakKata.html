@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tebak Kata 🎮</title>
+  <style>
+    :root {
+      --bg: #0f172a; /* slate-900 */
+      --panel: #111827; /* gray-900 */
+      --card: #1f2937; /* gray-800 */
+      --muted: #94a3b8; /* slate-400 */
+      --text: #e5e7eb; /* gray-200 */
+      --primary: #22c55e; /* green-500 */
+      --accent: #60a5fa; /* blue-400 */
+      --danger: #ef4444; /* red-500 */
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+      background: radial-gradient(1200px 800px at 10% 10%, #0b1224, var(--bg));
+      color: var(--text);
+      min-height: 100dvh; display: grid; place-items: center; padding: 24px;
+    }
+    .app { width: 100%; max-width: 900px; }
+    .header { display:flex; align-items:center; justify-content: space-between; gap: 12px; }
+    .title { font-size: clamp(20px, 3.5vw, 32px); font-weight: 800; letter-spacing: .5px; display:flex; align-items:center; gap:12px }
+    .badge { background: linear-gradient(135deg, var(--accent), #34d399); color:#001018; padding: 4px 10px; border-radius: 999px; font-weight:700; font-size: 12px }
+    .panel { background: linear-gradient(180deg, #0b1221, var(--panel)); border: 1px solid #1e293b; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.35); padding: 18px; }
+    .row { display:flex; gap: 16px; flex-wrap: wrap; align-items: stretch; }
+    .col { flex: 1 1 320px; }
+    .card { background: linear-gradient(180deg, #121a2b, var(--card)); border: 1px solid #263144; border-radius: 14px; padding: 16px; }
+    .muted { color: var(--muted); font-size: 14px }
+    .word { display:flex; gap: 10px; flex-wrap: wrap; justify-content:center; padding: 16px; }
+    .slot { width: 40px; height: 54px; border-radius: 10px; border:1px dashed #2b3a52; display:grid; place-items:center; font-weight: 800; font-size: 24px; background:#0d1424; }
+    .slot.revealed { border-style: solid; border-color:#3b82f6; background: #0b2550; box-shadow: inset 0 0 0 2px rgba(59,130,246,.25); }
+    .kbd { user-select:none; cursor:pointer; border:none; padding: 10px; border-radius: 12px; background:#0e1627; color:var(--text); border:1px solid #253044; min-width:40px; font-weight:700; transition:.15s transform, .15s background;
+      box-shadow: 0 2px 0 #00000060, 0 10px 25px #0006 inset; }
+    .kbd:hover { transform: translateY(-1px); background:#15223b }
+    .kbd:disabled { opacity: .35; cursor:not-allowed }
+    .kb-grid { display:grid; grid-template-columns: repeat(10, minmax(36px, 1fr)); gap: 8px; }
+    .stat { display:flex; gap:12px; flex-wrap: wrap; }
+    .pill { background:#0b152a; border:1px solid #243049; padding:8px 12px; border-radius:999px; font-weight:700; }
+    .success { color:#16a34a }
+    .danger { color:var(--danger) }
+    .accent { color: var(--accent) }
+    .controls { display:flex; gap:8px; flex-wrap: wrap; }
+    .btn { border:none; cursor:pointer; padding:10px 14px; border-radius:12px; background:#0b152a; color:var(--text); border:1px solid #263144; font-weight:700 }
+    .btn.primary { background: linear-gradient(135deg, #2563eb, #22c55e); color:#001018; border-color: transparent; }
+    .btn.ghost { background: transparent }
+    .btn:disabled { opacity:.5; cursor:not-allowed }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background:#0b152a; border:1px solid #243049; padding: 10px 14px; border-radius: 12px; display:none; }
+    .toast.show { display:block }
+    .list { display:flex; gap:8px; flex-wrap:wrap; }
+    .hint { background:#0b152a; border:1px dashed #334055; padding:8px 12px; border-radius:12px; font-size:14px }
+    .footer { text-align:center; margin-top:14px; color:var(--muted); font-size:12px }
+    @media (max-width: 420px){ .slot{ width: 34px; height: 48px; } .kb-grid{ grid-template-columns: repeat(9, 1fr);} }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel">
+      <div class="header">
+        <div class="title">Tebak Kata <span class="badge">Open Source</span></div>
+        <div class="controls">
+          <button id="btnNew" class="btn primary">🎲 Kata Baru</button>
+          <button id="btnHint" class="btn">💡 Petunjuk</button>
+          <button id="btnGiveUp" class="btn ghost">🏳️ Menyerah</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <div class="col card">
+          <div class="muted">Kata saat ini</div>
+          <div id="word" class="word" aria-live="polite"></div>
+
+          <div class="stat" style="margin-top:8px">
+            <div class="pill">❤️ Nyawa: <span id="lives">0</span></div>
+            <div class="pill">❌ Salah: <span id="wrong">0</span></div>
+            <div class="pill">✅ Benar: <span id="correct">0</span></div>
+          </div>
+
+          <div id="hint" class="hint" style="margin-top:12px; display:none"></div>
+        </div>
+        <div class="col card">
+          <div class="muted" style="margin-bottom:8px">Keyboard</div>
+          <div id="kb" class="kb-grid" role="group" aria-label="Keyboard"></div>
+          <div style="margin-top:8px; display:flex; gap:8px;">
+            <input id="guessInput" class="btn" style="flex:1; text-align:left; font-weight:600" placeholder="Tebak seluruh kata… (Enter)" />
+            <button id="btnGuessWord" class="btn">Enter</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">Dibuat untuk komunitas. Lisensi MIT. 💚</div>
+  </div>
+
+  <div id="toast" class="toast">Berhasil!</div>
+
+  <script>
+  // ====== Data kata (bisa diganti/ditambah) ======
+  const DEFAULT_WORDS = [
+    { w: "ALGORITMA", h: "Langkah-langkah logis untuk menyelesaikan masalah" },
+    { w: "DATABASE", h: "Tempat penyimpanan data terstruktur" },
+    { w: "JARINGAN", h: "Kumpulan perangkat yang saling terhubung" },
+    { w: "ENKRIPSI", h: "Teknik mengamankan data agar tak terbaca" },
+    { w: "ASINKRON", h: "Model kerja yang tidak menunggu proses lain selesai" },
+    { w: "FUNGSI", h: "Blok kode yang dapat dipanggil" },
+    { w: "MODULER", h: "Disusun dari bagian-bagian kecil yang dapat digunakan ulang" },
+    { w: "KOMPILER", h: "Penerjemah kode sumber menjadi kode mesin" },
+    { w: "REPOSITORI", h: "Tempat menyimpan dan mengelola versi kode" },
+    { w: "VARIABEL", h: "Penampung nilai dalam program" },
+  ];
+
+  // ====== State & util ======
+  let words = loadWords();
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let answer = null; // string
+  let revealed = []; // boolean per char
+  let wrongSet = new Set();
+  let correctSet = new Set();
+  let lives = 6;
+
+  function loadWords(){
+    try{
+      const local = JSON.parse(localStorage.getItem('tebak-kata-words'));
+      if (Array.isArray(local) && local.length) return local;
+    }catch(e){}
+    return DEFAULT_WORDS;
+  }
+  function saveWords(list){
+    localStorage.setItem('tebak-kata-words', JSON.stringify(list));
+  }
+  function notify(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(()=> t.classList.remove('show'), 1400);
+  }
+
+  // ====== Game core ======
+  function newGame(){
+    const pick = words[Math.floor(Math.random()*words.length)];
+    answer = pick.w.toUpperCase();
+    revealed = Array.from(answer, ch => (ch === ' ' ? true : false));
+    wrongSet.clear(); correctSet.clear();
+    lives = 6;
+
+    renderWord();
+    renderStats();
+    renderHint(null); // hide
+    resetKeyboard();
+  }
+
+  function guessLetter(ch){
+    ch = ch.toUpperCase();
+    if (!alphabet.includes(ch)) return;
+    if (wrongSet.has(ch) || correctSet.has(ch)) return;
+
+    let hit = false;
+    for (let i=0;i<answer.length;i++){
+      if (answer[i] === ch){ revealed[i] = true; hit = true; }
+    }
+    if (hit){
+      correctSet.add(ch);
+      renderWord();
+      renderStats();
+      if (revealed.every(Boolean)) endGame(true);
+    } else {
+      wrongSet.add(ch);
+      lives--; renderStats();
+      if (lives <= 0) endGame(false);
+    }
+    updateKeyState(ch, hit);
+  }
+
+  function guessWord(text){
+    const t = (text||'').trim().toUpperCase();
+    if (!t) return;
+    if (t === answer){
+      revealed = Array.from(answer, _=>true);
+      renderWord(); renderStats(); endGame(true);
+    } else {
+      lives = Math.max(0, lives-2); // penalti
+      renderStats();
+      if (lives === 0) endGame(false);
+      else notify('Bukan itu, coba lagi! (-2 nyawa)');
+    }
+  }
+
+  function endGame(win){
+    const kb = document.getElementById('kb');
+    kb.querySelectorAll('button').forEach(b => b.disabled = true);
+    if (win) notify('🎉 Kamu Menang!');
+    else {
+      // reveal all
+      revealed = Array.from(answer, _=>true); renderWord();
+      notify('💥 Kalah! Jawaban: '+answer);
+    }
+  }
+
+  // ====== Render ======
+  function renderWord(){
+    const wrap = document.getElementById('word');
+    wrap.innerHTML = '';
+    for (let i=0;i<answer.length;i++){
+      const ch = answer[i];
+      const box = document.createElement('div');
+      box.className = 'slot' + (revealed[i] ? ' revealed' : '');
+      box.textContent = revealed[i] ? ch : '';
+      wrap.appendChild(box);
+    }
+  }
+  function renderStats(){
+    document.getElementById('lives').textContent = lives;
+    document.getElementById('wrong').textContent = wrongSet.size;
+    document.getElementById('correct').textContent = correctSet.size;
+  }
+  function renderHint(text){
+    const el = document.getElementById('hint');
+    if (!text){ el.style.display = 'none'; el.textContent = ''; return; }
+    el.style.display = 'inline-block';
+    el.textContent = '💡 Petunjuk: ' + text;
+  }
+
+  function makeKeyboard(){
+    const kb = document.getElementById('kb');
+    kb.innerHTML = '';
+    for (const ch of alphabet){
+      const b = document.createElement('button');
+      b.className = 'kbd'; b.textContent = ch; b.setAttribute('data-key', ch);
+      b.addEventListener('click', () => guessLetter(ch));
+      kb.appendChild(b);
+    }
+  }
+  function resetKeyboard(){
+    const kb = document.getElementById('kb');
+    kb.querySelectorAll('button').forEach(b => { b.disabled = false; b.style.outline='none'; b.style.opacity='1'; });
+  }
+  function updateKeyState(ch, hit){
+    const b = document.querySelector(`[data-key="${ch}"]`);
+    if (!b) return;
+    b.disabled = true; b.style.opacity = hit ? '1' : '.4';
+    b.style.outline = hit ? '3px solid #22c55e' : '3px solid #ef4444';
+  }
+
+  // ====== Events ======
+  document.getElementById('btnNew').addEventListener('click', newGame);
+  document.getElementById('btnHint').addEventListener('click', () => {
+    const found = DEFAULT_WORDS.find(x => x.w === answer);
+    if (found) renderHint(found.h); else renderHint('Tidak tersedia');
+  });
+  document.getElementById('btnGiveUp').addEventListener('click', () => endGame(false));
+
+  document.getElementById('btnGuessWord').addEventListener('click', ()=> {
+    guessWord(document.getElementById('guessInput').value);
+    document.getElementById('guessInput').value = '';
+  });
+  document.getElementById('guessInput').addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter'){
+      guessWord(e.currentTarget.value); e.currentTarget.value='';
+    }
+  });
+  window.addEventListener('keydown', (e)=>{
+    if (/^[a-zA-Z]$/.test(e.key)) guessLetter(e.key);
+  });
+
+  // ====== UX: Tambah kata kustom via prompt ======
+  // Tekan Ctrl+N untuk menambah kata baru beserta petunjuknya.
+  window.addEventListener('keydown', (e)=>{
+    if (e.ctrlKey && e.key.toLowerCase() === 'n'){
+      e.preventDefault();
+      const w = (prompt('Masukkan kata (huruf saja, tanpa spasi):') || '').toUpperCase().trim();
+      if (!w || /[^A-Z]/.test(w)) return alert('Kata hanya boleh huruf A-Z.');
+      const h = prompt('Masukkan petunjuk (opsional):') || '';
+      words = [{ w, h }, ...words];
+      saveWords(words);
+      notify('Kata baru ditambahkan!');
+    }
+  });
+
+  // Start
+  makeKeyboard();
+  newGame();
+  </script>
+</body>
+</html>
